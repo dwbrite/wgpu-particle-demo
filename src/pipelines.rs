@@ -1,10 +1,11 @@
 use crate::gfx_ctx::GraphicsContext;
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
-    BufferDescriptor, BufferUsages, ComputePipeline, ComputePipelineDescriptor, FragmentState,
-    FrontFace, PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PrimitiveState,
-    PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
+    BufferDescriptor, BufferSize, BufferUsages, ComputePipeline, ComputePipelineDescriptor,
+    FragmentState, FrontFace, PipelineLayout, PipelineLayoutDescriptor, PolygonMode,
+    PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
     ShaderModuleDescriptor, ShaderSource, ShaderStages, VertexState,
 };
 
@@ -57,23 +58,21 @@ impl RenderStuff {
         // basically we read from one, then calc and write the new data to the next buffer.
         // then the buffers are "swapped" so that the new becomes the old and vice-versa
         let particle_swapchain = [
-            gc.device.create_buffer(&BufferDescriptor {
+            gc.device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Particle Buffer 0"),
-                size: MAX_PARTICLES * 64,
+                contents: &vec![0u8; MAX_PARTICLES as usize * 64],
                 usage: BufferUsages::STORAGE
                     | BufferUsages::COPY_DST
                     | BufferUsages::COPY_SRC
                     | BufferUsages::INDIRECT,
-                mapped_at_creation: false,
             }),
-            gc.device.create_buffer(&BufferDescriptor {
+            gc.device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("Particle Buffer 1"),
-                size: MAX_PARTICLES * 64,
+                contents: &vec![0u8; MAX_PARTICLES as usize * 64],
                 usage: BufferUsages::STORAGE
                     | BufferUsages::COPY_DST
                     | BufferUsages::COPY_SRC
                     | BufferUsages::INDIRECT,
-                mapped_at_creation: false,
             }),
         ];
 
@@ -88,7 +87,7 @@ impl RenderStuff {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: BufferSize::new(64),
                         },
                         count: None,
                     },
@@ -98,7 +97,7 @@ impl RenderStuff {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: BufferSize::new(64),
                         },
                         count: None,
                     },
@@ -108,7 +107,7 @@ impl RenderStuff {
                         ty: BindingType::Buffer {
                             ty: BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None,
+                            min_binding_size: BufferSize::new(12),
                         },
                         count: None,
                     },
