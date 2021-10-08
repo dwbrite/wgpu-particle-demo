@@ -8,24 +8,49 @@ use wgpu::{
     ShaderModuleDescriptor, ShaderSource, ShaderStages, VertexState,
 };
 
-const MAX_PARTICLES: u64 = 1_000_000;
+/*
+see: https://sotrh.github.io/learn-wgpu/showcase/windowless/#getting-data-out-of-a-buffer
 
-struct RenderStuff {
-    particle_swapchain: [Buffer; 2],
-    bind_groups: [BindGroup; 2],
+particles will also need a bool to determine if they are dead or not :thinking:
+*/
 
-    shaders: ShaderModule,
-    compute_pipeline: ComputePipeline,
-    render_pipeline: RenderPipeline,
-    bind_group_layout: BindGroupLayout,
+pub const MAX_PARTICLES: u64 = 1_000_000;
+
+pub struct RenderStuff {
+    // should only bind_groups be a swapchain???
+    pub particle_swapchain: [Buffer; 2],
+    pub bind_groups: [BindGroup; 2],
+
+    pub shaders: ShaderModule,
+    pub emit_pipeline: ComputePipeline,
+    pub compute_pipeline: ComputePipeline,
+    pub render_pipeline: RenderPipeline,
+    pub bind_group_layout: BindGroupLayout,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct BufferStuff {
+    dst_len: u64,
+    src_len: u64,
 }
 
 impl RenderStuff {
-    fn new(gc: &mut GraphicsContext) -> RenderStuff {
+    pub fn new(gc: &mut GraphicsContext) -> RenderStuff {
         // using one shader module to keep things simple
         let shaders = gc.device.create_shader_module(&ShaderModuleDescriptor {
             label: Some("particle demo shaders"),
             source: ShaderSource::Wgsl(include_str!("idk.wgsl").into()),
+        });
+
+        let shared_data_buffer = gc.device.create_buffer(&BufferDescriptor {
+            label: Some("helper data for compute shaders"),
+            size: 12,
+            usage: BufferUsages::STORAGE
+                | BufferUsages::COPY_DST
+                | BufferUsages::COPY_SRC
+                | BufferUsages::INDIRECT,
+            mapped_at_creation: false,
         });
 
         // these two buffers act as a swapchain for the particle buffers
@@ -34,14 +59,20 @@ impl RenderStuff {
         let particle_swapchain = [
             gc.device.create_buffer(&BufferDescriptor {
                 label: Some("Particle Buffer 0"),
-                size: MAX_PARTICLES * 48,
-                usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+                size: MAX_PARTICLES * 64,
+                usage: BufferUsages::STORAGE
+                    | BufferUsages::COPY_DST
+                    | BufferUsages::COPY_SRC
+                    | BufferUsages::INDIRECT,
                 mapped_at_creation: false,
             }),
             gc.device.create_buffer(&BufferDescriptor {
-                label: Some("Particle Buffer 0"),
-                size: MAX_PARTICLES * 48,
-                usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+                label: Some("Particle Buffer 1"),
+                size: MAX_PARTICLES * 64,
+                usage: BufferUsages::STORAGE
+                    | BufferUsages::COPY_DST
+                    | BufferUsages::COPY_SRC
+                    | BufferUsages::INDIRECT,
                 mapped_at_creation: false,
             }),
         ];
@@ -71,10 +102,20 @@ impl RenderStuff {
                         },
                         count: None,
                     },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
             });
 
-        // (D)RY :^))
+        // (D)RY :^)
         let bind_groups = [
             gc.device.create_bind_group(&BindGroupDescriptor {
                 label: None,
@@ -88,6 +129,10 @@ impl RenderStuff {
                         binding: 1,
                         resource: particle_swapchain[1].as_entire_binding(),
                     },
+                    BindGroupEntry {
+                        binding: 2,
+                        resource: shared_data_buffer.as_entire_binding(),
+                    },
                 ],
             }),
             gc.device.create_bind_group(&BindGroupDescriptor {
@@ -95,12 +140,16 @@ impl RenderStuff {
                 layout: &bind_group_layout,
                 entries: &[
                     BindGroupEntry {
-                        binding: 1,
+                        binding: 0,
                         resource: particle_swapchain[1].as_entire_binding(),
                     },
                     BindGroupEntry {
-                        binding: 0,
+                        binding: 1,
                         resource: particle_swapchain[0].as_entire_binding(),
+                    },
+                    BindGroupEntry {
+                        binding: 2,
+                        resource: shared_data_buffer.as_entire_binding(),
                     },
                 ],
             }),
@@ -118,7 +167,22 @@ impl RenderStuff {
                     }),
                 ),
                 module: &shaders,
-                entry_point: "main",
+                entry_point: "step_particles",
+            });
+
+        let emit_pipeline = gc
+            .device
+            .create_compute_pipeline(&ComputePipelineDescriptor {
+                label: None,
+                layout: Some(
+                    &gc.device.create_pipeline_layout(&PipelineLayoutDescriptor {
+                        label: None,
+                        bind_group_layouts: &[&bind_group_layout],
+                        push_constant_ranges: &[],
+                    }),
+                ),
+                module: &shaders,
+                entry_point: "emit",
             });
 
         let render_pipeline = gc.device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -156,6 +220,7 @@ impl RenderStuff {
         RenderStuff {
             particle_swapchain,
             shaders,
+            emit_pipeline,
             compute_pipeline,
             render_pipeline,
             bind_group_layout,

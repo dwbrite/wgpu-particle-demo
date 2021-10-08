@@ -1,12 +1,19 @@
 mod gfx_ctx;
 mod pipelines;
 
-use winit::dpi::PhysicalSize;
-use winit::event_loop::ControlFlow;
-use wgpu::{SurfaceConfiguration, TextureUsages, PresentMode, RequestAdapterOptions, ShaderModule, RenderPipeline, BindGroupLayout, BindGroup, ComputePipeline};
 use crate::gfx_ctx::GraphicsContext;
+use crate::pipelines::{RenderStuff, MAX_PARTICLES};
+use core::mem;
+use std::ptr;
+use wgpu::{
+    BindGroup, BindGroupLayout, Buffer, CommandEncoderDescriptor, ComputePassDescriptor,
+    ComputePipeline, PresentMode, RenderPipeline, RequestAdapterOptions, ShaderModule,
+    SurfaceConfiguration, TextureUsages,
+};
+use winit::dpi::PhysicalSize;
 use winit::event::Event;
 use winit::event::*;
+use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
 use winit_input_helper::WinitInputHelper;
 
@@ -17,6 +24,7 @@ pub enum ShouldQuit {
 
 struct State {
     gc: GraphicsContext,
+    render_stuff: RenderStuff,
     input_helper: WinitInputHelper,
 }
 
@@ -28,12 +36,14 @@ impl State {
         // if events cleared
         if has_events {
             profiling::scope!("Main Thread");
-            //
+
+            self.update();
+            self.render();
+
             profiling::finish_frame!();
         }
 
         let input_helper = &mut self.input_helper;
-
 
         if let Some(size) = input_helper.window_resized() {
             self.gc.resize(size);
@@ -44,6 +54,45 @@ impl State {
         } else {
             ShouldQuit::False
         }
+    }
+
+    #[profiling::function]
+    fn update(&mut self) {
+        unsafe {
+            let pa: *mut BindGroup = &mut self.render_stuff.bind_groups[0];
+            let pb: *mut BindGroup = &mut self.render_stuff.bind_groups[1];
+            ptr::swap(pa, pb);
+        }
+        unsafe {
+            let pa: *mut Buffer = &mut self.render_stuff.particle_swapchain[0];
+            let pb: *mut Buffer = &mut self.render_stuff.particle_swapchain[1];
+            ptr::swap(pa, pb);
+        }
+    }
+
+    #[profiling::function]
+    fn render(&self) {
+        let mut encoder = self.gc.device.create_command_encoder(&Default::default());
+
+        {
+            let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("physics compute pass"),
+            });
+            cpass.set_pipeline(&self.render_stuff.compute_pipeline);
+            cpass.set_bind_group(0, &self.render_stuff.bind_groups[0], &[]);
+            cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
+        }
+
+        {
+            let mut emitpass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("emission pass"),
+            });
+            emitpass.set_pipeline(&self.render_stuff.emit_pipeline);
+            emitpass.set_bind_group(0, &self.render_stuff.bind_groups[0], &[]);
+            emitpass.dispatch((5000f32 / 64f32) as u32, 1, 1);
+        }
+
+        self.gc.queue.submit(Some(encoder.finish()));
     }
 }
 
@@ -59,8 +108,12 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
+    let mut gc = GraphicsContext::new(window);
+    let render_stuff = RenderStuff::new(&mut gc);
+
     let mut state = State {
-        gc: GraphicsContext::new(window),
+        gc,
+        render_stuff,
         input_helper: WinitInputHelper::new(),
     };
 
