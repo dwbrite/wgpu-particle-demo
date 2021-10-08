@@ -1,0 +1,29 @@
+struct Particle {
+  pos : vec3<f32>;
+  vel : vec3<f32>;
+  col : vec3<f32>;
+  idk : vec3<f32>;
+};
+
+[[block]]
+struct Particles {
+  particles : [[stride(48)]] array<Particle>;
+};
+
+[[group(0), binding(0)]] var<storage, read> particlesSrc : Particles;
+[[group(0), binding(1)]] var<storage, read_write> particlesDst : Particles;
+
+[[stage(compute), workgroup_size(64)]]
+fn main([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
+}
+
+[[stage(vertex)]]
+fn main() -> [[builtin(position)]] vec4<f32> {
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+}
+
+
+[[stage(fragment)]]
+fn main() -> [[location(0)]] vec4<f32> {
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+}
