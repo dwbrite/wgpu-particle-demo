@@ -32,6 +32,10 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
 
     let new_idx = helperData.dstLen + idx;
 
+    if (helperData.dstLen >= 20000u) {
+        return;
+    }
+
     particlesDst.particles[new_idx] = Particle(
         vec3<f32>(1.0, 0.4, 0.7),
         vec3<f32>(2.0, 0.5, 0.8),

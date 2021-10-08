@@ -4,7 +4,9 @@ mod pipelines;
 use crate::gfx_ctx::GraphicsContext;
 use crate::pipelines::{RenderStuff, MAX_PARTICLES};
 use core::mem;
-use std::ptr;
+use std::thread::sleep;
+use std::time::Duration;
+use std::{ptr, thread};
 use wgpu::{
     BindGroup, BindGroupLayout, Buffer, CommandEncoderDescriptor, ComputePassDescriptor,
     ComputePipeline, PresentMode, RenderPipeline, RequestAdapterOptions, ShaderModule,
@@ -68,6 +70,8 @@ impl State {
             let pb: *mut Buffer = &mut self.render_stuff.particle_swapchain[1];
             ptr::swap(pa, pb);
         }
+
+        thread::sleep(Duration::from_millis(10));
     }
 
     #[profiling::function]
