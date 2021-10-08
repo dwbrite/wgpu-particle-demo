@@ -1,0 +1,28 @@
+[package]
+name = "particles-demo"
+version = "0.1.0"
+edition = "2018"
+resolver="2"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# rendering stuff
+wgpu = { version = "0.11", features = ["webgl"] }
+bytemuck = { version = "1.7", features = ["derive"] }
+winit = "0.25.0"
+winit_input_helper = "0.10.0"
+
+# async
+tokio = "1.12"
+futures = "0.3.17"
+
+# profiling
+log = "0.4"
+env_logger = "0.9.0"
+profiling = { version = "1.0.3", features = ["profile-with-tracy"] }
+
+# extras
+#egui = "0.14.2"
