@@ -3,6 +3,7 @@ struct Particle {
   vel : vec3<f32>;
   col : vec4<f32>; // color+brightness
   lifetime: f32;
+//  pad1: f32;
 };
 
 [[block]]
@@ -10,7 +11,7 @@ struct Particles {
   particles : [[stride(64)]] array<Particle>;
 };
 
-[[group(0), binding(0)]] var<storage, read_write> particlesSrc : Particles;
+[[group(0), binding(0)]] var<storage, read> particlesSrc : Particles;
 [[group(0), binding(1)]] var<storage, read_write> particlesDst : Particles;
 
 
@@ -25,6 +26,7 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
             vec3<f32>(2.0, 0.5, 0.8),
             vec4<f32>(3.0, 0.6, 0.9, 0.0),
             5.0,
+//            0.0,
         );
     }
 }
