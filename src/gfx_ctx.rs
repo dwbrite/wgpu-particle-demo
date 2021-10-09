@@ -1,6 +1,7 @@
-use wgpu::{PresentMode, TextureUsages, SurfaceConfiguration, RequestAdapterOptions};
-use winit::window::Window;
 use futures::executor::block_on;
+use std::path::Path;
+use wgpu::{PresentMode, RequestAdapterOptions, SurfaceConfiguration, TextureUsages};
+use winit::window::Window;
 
 pub struct GraphicsContext {
     pub window: winit::window::Window,
@@ -25,7 +26,7 @@ impl GraphicsContext {
             force_fallback_adapter: false,
             compatible_surface: Some(&surface),
         }))
-            .unwrap();
+        .unwrap();
 
         println!("{:?}", adapter.get_info().backend);
 
@@ -35,9 +36,9 @@ impl GraphicsContext {
                 limits: wgpu::Limits::downlevel_webgl2_defaults(), // so we can run on webgl
                 label: None,
             },
-            None, // Trace path
+            Some(Path::new("trace")),
         ))
-            .unwrap();
+        .unwrap();
 
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,

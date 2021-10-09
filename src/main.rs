@@ -2,28 +2,19 @@ mod gfx_ctx;
 mod pipelines;
 
 use crate::gfx_ctx::GraphicsContext;
-use crate::pipelines::{RenderStuff, MAX_PARTICLES};
-use core::mem;
-use std::thread::sleep;
+use crate::pipelines::RenderStuff;
+
+use std::thread;
 use std::time::Duration;
-use std::{ptr, thread};
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
-use wgpu::{
-    BindGroup, BindGroupLayout, Buffer, BufferUsages, CommandEncoderDescriptor,
-    ComputePassDescriptor, ComputePipeline, PresentMode, RenderPipeline, RequestAdapterOptions,
-    ShaderModule, SurfaceConfiguration, TextureUsages,
-};
-use winit::dpi::PhysicalSize;
+
+use wgpu::ComputePassDescriptor;
+
 use winit::event::Event;
-use winit::event::*;
+
+use log::LevelFilter;
 use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
 use winit_input_helper::WinitInputHelper;
-
-pub enum ShouldQuit {
-    True,
-    False,
-}
 
 struct State {
     gc: GraphicsContext,
@@ -33,10 +24,9 @@ struct State {
 
 impl State {
     #[profiling::function]
-    pub fn handle_events(&mut self, event: &Event<()>) -> ShouldQuit {
+    pub fn handle_events(&mut self, event: &Event<()>) -> bool {
         let has_events = self.input_helper.update(event);
 
-        // if events cleared
         if has_events {
             profiling::scope!("Main Thread");
 
@@ -47,23 +37,18 @@ impl State {
         }
 
         let input_helper = &mut self.input_helper;
-
         if let Some(size) = input_helper.window_resized() {
             self.gc.resize(size);
         }
 
-        if input_helper.quit() {
-            ShouldQuit::True
-        } else {
-            ShouldQuit::False
-        }
+        input_helper.quit()
     }
 
     #[profiling::function]
     fn update(&mut self) {
-        self.render_stuff.bind_groups.swap(0, 1);
-        self.render_stuff.particle_swapchain.swap(0, 1);
+        self.render_stuff.bind_group_swapchain.swap(0, 1);
 
+        // sleep just to make sure our loop isn't too hot for the gpu
         thread::sleep(Duration::from_millis(10));
     }
 
@@ -71,13 +56,24 @@ impl State {
     fn render(&self) {
         let mut encoder = self.gc.device.create_command_encoder(&Default::default());
 
+        // using a new buffer every frame has no problems
+        // (despite the extreme frametimes, since the buffer is 64MB)
+
+        // let new_buf = self.gc.device.create_buffer_init(&BufferInitDescriptor {
+        //     label: Some("New/Empty Particle Buffer"),
+        //     contents: &vec![0u8; MAX_PARTICLES as usize * 64],
+        //     usage: BufferUsages::STORAGE
+        //         | BufferUsages::INDIRECT,
+        // });
+
         {
             let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("physics compute pass"),
             });
             cpass.set_pipeline(&self.render_stuff.compute_pipeline);
-            cpass.set_bind_group(0, &self.render_stuff.bind_groups[0], &[]);
-            cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
+            cpass.set_bind_group(0, &self.render_stuff.bind_group_swapchain[0], &[]);
+            // cpass.dispatch_indirect(&new_buf, 0);
+            cpass.dispatch_indirect(&self.render_stuff.particle_buffers[0], 0);
         }
 
         {
@@ -85,7 +81,7 @@ impl State {
                 label: Some("emission pass"),
             });
             emitpass.set_pipeline(&self.render_stuff.emit_pipeline);
-            emitpass.set_bind_group(0, &self.render_stuff.bind_groups[0], &[]);
+            emitpass.set_bind_group(0, &self.render_stuff.bind_group_swapchain[0], &[]);
             emitpass.dispatch((5000f32 / 64f32) as u32, 1, 1);
         }
 
@@ -95,10 +91,13 @@ impl State {
 
 fn main() {
     profiling::register_thread!("Main Thread");
-    env_logger::init();
+    env_logger::builder()
+        .filter_level(LevelFilter::Trace)
+        .init();
+
     let event_loop = EventLoop::new();
 
-    let title = "void";
+    let title = "particle test";
     let window = winit::window::WindowBuilder::new()
         .with_title(title)
         .with_fullscreen(None)
@@ -117,7 +116,7 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        if matches!(state.handle_events(&event), ShouldQuit::True) {
+        if state.handle_events(&event) {
             *control_flow = ControlFlow::Exit
         }
     });
