@@ -2,12 +2,12 @@ mod gfx_ctx;
 mod pipelines;
 
 use crate::gfx_ctx::GraphicsContext;
-use crate::pipelines::RenderStuff;
+use crate::pipelines::{RenderStuff, MAX_PARTICLES};
 
 use std::thread;
 use std::time::Duration;
 
-use wgpu::ComputePassDescriptor;
+use wgpu::{ComputePassDescriptor, BufferUsages};
 
 use winit::event::Event;
 
@@ -15,6 +15,7 @@ use log::LevelFilter;
 use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
 use winit_input_helper::WinitInputHelper;
+use wgpu::util::{DeviceExt, BufferInitDescriptor};
 
 struct State {
     gc: GraphicsContext,
@@ -94,7 +95,7 @@ impl State {
 fn main() {
     profiling::register_thread!("Main Thread");
     env_logger::builder()
-        .filter_level(LevelFilter::Trace)
+        // .filter_level(LevelFilter::Trace)
         .init();
 
     let event_loop = EventLoop::new();
