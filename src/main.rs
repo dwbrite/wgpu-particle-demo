@@ -47,6 +47,7 @@ impl State {
     #[profiling::function]
     fn update(&mut self) {
         self.render_stuff.bind_group_swapchain.swap(0, 1);
+        self.render_stuff.particle_swapchain.swap(0, 1);
 
         // sleep just to make sure our loop isn't too hot for the gpu
         thread::sleep(Duration::from_millis(10));
@@ -73,7 +74,8 @@ impl State {
             cpass.set_pipeline(&self.render_stuff.compute_pipeline);
             cpass.set_bind_group(0, &self.render_stuff.bind_group_swapchain[0], &[]);
             // cpass.dispatch_indirect(&new_buf, 0);
-            cpass.dispatch_indirect(&self.render_stuff.particle_buffers[0], 0);
+            // println!("{:?}", &self.render_stuff.particle_swapchain[0]);
+            cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
         }
 
         {

@@ -10,7 +10,7 @@ use wgpu::{
 pub const MAX_PARTICLES: u64 = 1_000_000;
 
 pub struct RenderStuff {
-    pub particle_buffers: [Buffer; 2],
+    pub particle_swapchain: [Buffer; 2],
 
     pub bind_group_layout: BindGroupLayout,
     pub bind_group_swapchain: [BindGroup; 2],
@@ -134,7 +134,7 @@ impl RenderStuff {
             });
 
         RenderStuff {
-            particle_buffers: particle_swapchain,
+            particle_swapchain: particle_swapchain,
             shaders,
             emit_pipeline,
             compute_pipeline,
