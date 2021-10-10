@@ -6,8 +6,10 @@ use wgpu::{
     ComputePipelineDescriptor, PipelineLayoutDescriptor, ShaderModule, ShaderModuleDescriptor,
     ShaderSource, ShaderStages,
 };
+use std::thread;
+use std::time::Duration;
 
-pub const MAX_PARTICLES: u64 = 1_000_000;
+pub const MAX_PARTICLES: u64 = 100;
 
 pub struct RenderStuff {
     pub particle_swapchain: [Buffer; 2],
@@ -134,7 +136,7 @@ impl RenderStuff {
             });
 
         RenderStuff {
-            particle_swapchain: particle_swapchain,
+            particle_swapchain,
             shaders,
             emit_pipeline,
             compute_pipeline,

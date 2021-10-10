@@ -8,7 +8,7 @@ struct Particle {
 
 [[block]]
 struct Particles {
-  particles : [[stride(64)]] array<Particle>;
+  particles : [[stride(64)]] array<Particle, 100>;
 };
 
 [[group(0), binding(0)]] var<storage, read> particlesSrc : Particles;
@@ -22,10 +22,10 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
     // even adding only 10 particles will cause a crash
     if (idx < 10u && idx >= 0u) {
         particlesDst.particles[idx] = Particle(
-            vec3<f32>(1.0, 0.4, 0.7),
-            vec3<f32>(2.0, 0.5, 0.8),
-            vec4<f32>(3.0, 0.6, 0.9, 0.0),
-            5.0,
+            vec3<f32>(0.1, 0.4, 0.7),
+            vec3<f32>(0.2, 0.5, 0.8),
+            vec4<f32>(0.3, 0.6, 0.9, 0.0),
+            0.5,
 //            0.0,
         );
     }
