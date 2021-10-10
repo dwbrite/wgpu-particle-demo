@@ -3,22 +3,22 @@ mod pipelines;
 
 use crate::gfx_ctx::GraphicsContext;
 use crate::pipelines::{RenderStuff, MAX_PARTICLES};
-use core::mem;
-use std::thread::sleep;
-use std::time::Duration;
-use std::{ptr, thread};
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
+
+
+
+
+
 use wgpu::{
-    BindGroup, BindGroupLayout, Buffer, BufferUsages, CommandEncoderDescriptor,
-    ComputePassDescriptor, ComputePipeline, PresentMode, RenderPipeline, RequestAdapterOptions,
-    ShaderModule, SurfaceConfiguration, TextureUsages,
+    ComputePassDescriptor,
 };
-use winit::dpi::PhysicalSize;
+
 use winit::event::Event;
-use winit::event::*;
+
 use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
+use winit::window::Fullscreen;
 use winit_input_helper::WinitInputHelper;
+use Fullscreen::Borderless;
 
 pub enum ShouldQuit {
     True,
@@ -61,10 +61,8 @@ impl State {
 
     #[profiling::function]
     fn update(&mut self) {
-        self.render_stuff.bind_groups.swap(0, 1);
-        self.render_stuff.particle_swapchain.swap(0, 1);
-
-        thread::sleep(Duration::from_millis(10));
+        self.render_stuff.compute.bind_groups.swap(0, 1);
+        self.render_stuff.compute.particle_swapchain.swap(0, 1);
     }
 
     #[profiling::function]
@@ -75,17 +73,20 @@ impl State {
             let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("physics compute pass"),
             });
-            cpass.set_pipeline(&self.render_stuff.compute_pipeline);
-            cpass.set_bind_group(0, &self.render_stuff.bind_groups[0], &[]);
-            cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
+            cpass.set_pipeline(&self.render_stuff.compute.compute_pipeline);
+            cpass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
+            cpass.set_bind_group(1, &self.render_stuff.shared.bind_group, &[]);
+            // cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
+            cpass.dispatch(((MAX_PARTICLES + 63) as f32 / 64f32) as u32, 1, 1);
         }
 
         {
             let mut emitpass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("emission pass"),
             });
-            emitpass.set_pipeline(&self.render_stuff.emit_pipeline);
-            emitpass.set_bind_group(0, &self.render_stuff.bind_groups[0], &[]);
+            emitpass.set_pipeline(&self.render_stuff.compute.emit_pipeline);
+            emitpass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
+            emitpass.set_bind_group(1, &self.render_stuff.shared.bind_group, &[]);
             emitpass.dispatch((5000f32 / 64f32) as u32, 1, 1);
         }
 
@@ -98,10 +99,9 @@ fn main() {
     env_logger::init();
     let event_loop = EventLoop::new();
 
-    let title = "void";
     let window = winit::window::WindowBuilder::new()
-        .with_title(title)
-        .with_fullscreen(None)
+        .with_title("particles!")
+        .with_fullscreen(Some(Borderless(None)))
         .build(&event_loop)
         .unwrap();
 
