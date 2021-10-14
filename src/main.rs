@@ -4,13 +4,7 @@ mod pipelines;
 use crate::gfx_ctx::GraphicsContext;
 use crate::pipelines::{RenderStuff, MAX_PARTICLES};
 
-
-
-
-
-use wgpu::{
-    ComputePassDescriptor,
-};
+use wgpu::ComputePassDescriptor;
 
 use winit::event::Event;
 

@@ -1,6 +1,6 @@
-use wgpu::{PresentMode, TextureUsages, SurfaceConfiguration, RequestAdapterOptions};
-use winit::window::Window;
 use futures::executor::block_on;
+use wgpu::{PresentMode, RequestAdapterOptions, SurfaceConfiguration, TextureUsages};
+use winit::window::Window;
 
 pub struct GraphicsContext {
     pub window: winit::window::Window,
@@ -25,19 +25,22 @@ impl GraphicsContext {
             force_fallback_adapter: false,
             compatible_surface: Some(&surface),
         }))
-            .unwrap();
+        .unwrap();
 
         println!("{:?}", adapter.get_info().backend);
 
         let (device, queue) = block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 features: wgpu::Features::empty(),
-                limits: wgpu::Limits::downlevel_webgl2_defaults(), // so we can run on webgl
+                limits: wgpu::Limits {
+                    max_storage_buffer_binding_size: 256 << 20,
+                    ..wgpu::Limits::downlevel_webgl2_defaults()
+                }, // so we can run on webgl
                 label: None,
             },
             None, // Trace path
         ))
-            .unwrap();
+        .unwrap();
 
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,

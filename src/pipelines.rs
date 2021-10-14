@@ -2,8 +2,8 @@ use crate::gfx_ctx::GraphicsContext;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, ComputePipeline, ComputePipelineDescriptor,
-    FragmentState, FrontFace, PipelineLayoutDescriptor, PolygonMode,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, ComputePipeline,
+    ComputePipelineDescriptor, FragmentState, FrontFace, PipelineLayoutDescriptor, PolygonMode,
     PrimitiveState, PrimitiveTopology, RenderPipeline, RenderPipelineDescriptor, ShaderModule,
     ShaderModuleDescriptor, ShaderSource, ShaderStages, VertexState,
 };
@@ -14,14 +14,17 @@ see: https://sotrh.github.io/learn-wgpu/showcase/windowless/#getting-data-out-of
 particles will also need a bool to determine if they are dead or not :thinking:
 */
 
-pub const MAX_PARTICLES: u32 = 2_000_000;
+pub const MAX_PARTICLES: u32 = 4_000_000;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
-    paused: u8,
+    // no bools in Pod, and bools don't have a known in-memory representation
+    // so we need to use u32 in its place.
+    paused: u32,
+    mouse_down: u32,
+    mouse_pos_last: [f32; 3],
     // TODO: camera
-    // TODO: mouse position (vec3?)
 }
 
 pub struct RenderStuff {
@@ -237,7 +240,14 @@ impl Shared {
 
         let uniforms = gc.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("camera + mouse data uniforms"),
-            contents: bytemuck::bytes_of(&Uniforms { paused: 0 }),
+            contents: bytemuck::bytes_of(&Uniforms {
+                paused: 0,
+                mouse_down: 0,
+                // mouse_pos_x: 0.0,
+                // mouse_pos_y: 0.0,
+                // mouse_pos_z: 0.0,
+                mouse_pos_last: [0., 0., 0.],
+            }),
             usage: BufferUsages::UNIFORM,
         });
 

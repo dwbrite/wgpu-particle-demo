@@ -8,7 +8,9 @@ struct HelperData {
 
 [[block]]
 struct Uniforms {
-    paused: bool;
+    paused: u32;
+    mouse_down: u32;
+    mouse_pos_last: vec3<f32>;
 };
 
 struct Particle {
@@ -30,6 +32,12 @@ struct Particles {
 [[group(1), binding(1)]] var<uniform> uniforms : Uniforms;
 
 
+
+fn add_particle(particle: Particle) {
+    particlesDst.particles[helperData.idx] = particle;
+    helperData.idx = helperData.idx + 1u;
+}
+
 [[stage(compute), workgroup_size(64)]]
 fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
     let idx = global_invocation_id.x;
@@ -38,18 +46,31 @@ fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u
         return;
     }
 
-    let particle = particlesSrc.particles[idx];
+    var particle = particlesSrc.particles[idx];
     if (particle.lifetime <= 0.0) {
         return;
     }
 
     // TODO: calculate particle new position
-    //
 
-    // add particle to dst
-    particlesDst.particles[helperData.idx] = particle;
-    // increment idx
-    helperData.idx = helperData.idx + 1u;
+    // calculate friction
+    particle.vel = vec3<f32>(particle.vel.x * 0.97, particle.vel.y * 0.97, particle.vel.z * 0.97);
+    // then calculate acceleration towards mouse
+    if (uniforms.mouse_down == 1u) {
+        let a = particle.pos;
+        let b = uniforms.mouse_pos_last;
+        let distance = distance(a, b);
+        let dist_parts = a - b;
+
+        // then calculate the new velocity
+        let diff = a - b;
+        let g = 5.0;
+        // what the fuck is this??
+        let tmp = normalize(diff) / pow(diff, vec3<f32>(2.0));
+        particle.vel = particle.vel + vec3<f32>(tmp * g);
+    }
+    particle.pos = particle.pos + particle.vel;
+    add_particle(particle);
 }
 
 
@@ -61,6 +82,8 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
     }
 
     // TODO: emit particles in a spiral, parallel to the view plane
+    // TODO: only emit when mouse pressed? that could probably be done cpu side
+
     particlesDst.particles[idx] = Particle(
         vec3<f32>(0.5, 0.4, 0.7),
         vec3<f32>(2.0, 0.5, 0.8),
