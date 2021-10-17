@@ -27,7 +27,7 @@ struct VertexOut {
 
 [[block]]
 struct Particles {
-    particles : [[stride(64)]] array<Particle>;
+    group : array<[[stride(64)]] array<Particle, 256>>;
 };
 
 [[group(0), binding(0)]] var<storage, read> particlesSrc : Particles;
@@ -38,65 +38,60 @@ struct Particles {
 
 
 fn add_particle(particle: Particle) {
-    let idx = atomicLoad(&helperData.idx);
-    if (idx >= helperData.maxParticles) {
-        return;
-    }
-
-    particlesDst.particles[idx] = particle;
-    let tmp = atomicAdd(&helperData.idx, 1u);
-//    abc();
-//    helperData.idx = helperData.idx + 1u;
-}
-
-[[stage(compute), workgroup_size(64)]]
-fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
-    var particle = particlesSrc.particles[atomicLoad(&helperData.idx)];
-
-//    if (particle.lifetime <= 0.0) {
+//    let idx = atomicAdd(&helperData.idx, 1u);
+//    if (idx >= helperData.maxParticles) {
 //        return;
 //    }
 
-    // TODO: calculate particle new position
+//    particlesDst.particles[idx] = particle;
+}
 
-    // calculate friction
-//    particle.vel = vec3<f32>(particle.vel.x * 0.99998, particle.vel.y * 0.99998, particle.vel.z * 0.99998);
-//    // then calculate acceleration towards mouse
-//    if (uniforms.mouse_down == 1u) {
-//        let a = particle.pos;
-//        let b = uniforms.mouse_pos_last;
-//        let dist_parts = a - b;
-//
-//        // then calculate the new velocity
-//        let diff = a - b;
-//        let g = 5.0;
-//        // what the fuck is this??
-//        let tmp = normalize(diff) / pow(diff, vec3<f32>(2.0));
-//        particle.vel = particle.vel + vec3<f32>(tmp * g);
-//    }
-//    particle.pos = particle.pos + particle.vel;
+// TODO: render pass for merging particle groups
 
-    add_particle(particle);
+[[stage(compute), workgroup_size(1)]]
+fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
+    var group = particlesSrc.group[global_invocation_id.x];
+
+    let len = 256;
+    var src_idx = 0;
+    var dst_idx = 0;
+    loop {
+        if (src_idx >= len) {
+            break;
+        }
+
+        var particle = group[src_idx];
+        // src_idx++ since we're done using it
+        src_idx = src_idx + 1;
+
+        // do physics on a particle
+        if (particle.lifetime <= 0.0) {
+            continue;
+        }
+
+        // then add it to dstGroup
+        particlesDst.group[global_invocation_id.x][dst_idx] = particle;
+
+        dst_idx = dst_idx + 1;
+    }
 }
 
 
-[[stage(compute), workgroup_size(64)]]
+[[stage(compute), workgroup_size(256)]]
 fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
-    // TODO: emit particles in a spiral, parallel to the view plane
-    let p = Particle(
-        vec3<f32>(0.1, -0.1, 0.4),
-        vec3<f32>(2.0, 0.5, 0.8),
-        vec4<f32>(1.0, 0.0, 0.0, 0.0),
-        1000.0,
-    );
-
-    add_particle(p);
+//    let p = Particle(
+//        vec3<f32>(0.1, -0.1, 0.4),
+//        vec3<f32>(2.0, 0.5, 0.8),
+//        vec4<f32>(1.0, 0.0, 0.0, 0.0),
+//        1000.0,
+//    );
+//
+//    add_particle(p);
 }
 
 
 [[stage(compute), workgroup_size(1)]]
 fn swap() {
-    helperData.srcLen = atomicLoad(&helperData.idx);
-    atomicStore(&helperData.idx, 0u);
+//    atomicStore(&helperData.idx, 0u);
 }
 

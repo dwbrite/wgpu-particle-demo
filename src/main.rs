@@ -104,7 +104,11 @@ impl State {
             cpass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
             cpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
             // cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
-            cpass.dispatch(((MAX_PARTICLES + 63) as f32 / 64f32) as u32, 1, 1);
+            cpass.dispatch(
+                ((MAX_PARTICLES + 255) as f32 / 256f32 / 256f32) as u32,
+                1,
+                1,
+            );
             // cpass.dispatch(64, 1, 1);
         }
 
@@ -115,7 +119,7 @@ impl State {
             emitpass.set_pipeline(&self.render_stuff.compute.emit_pipeline);
             emitpass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
             emitpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
-            emitpass.dispatch((5000f32 / 64f32) as u32, 1, 1);
+            emitpass.dispatch((5255f32 / 256f32) as u32, 1, 1);
             // emitpass.dispatch(5000, 1, 1);
         }
 
