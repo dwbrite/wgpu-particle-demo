@@ -76,6 +76,23 @@ fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u
     }
 }
 
+// this could be done with dispatch_indirect
+[[stage(compute), workgroup_size(128)]]
+fn sort_particles([[builtin(global_invocation_id)]] invocation: vec3<u32>) {
+    // typical parallel sorting algorithms are difficult to perform on a gpu.
+    // this is due to them usually requiring a dynamic number of threads,
+    // or needing to run multiple times sequentially.
+
+    // let's try some fucked up variant of merge sort
+    // basically, split the 4096* items we need to sort into groups of 32
+    // that's 128 groups of 32
+    // from there, sort each group (quicksort maybe?
+    // then merge sort the groups with a single thread
+
+    // maybe insertion sort isn't a terrible idea for an array that's only len 32
+    // since it's parallelized anyway... :thinking:
+}
+
 
 [[stage(compute), workgroup_size(256)]]
 fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
