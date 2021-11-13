@@ -57,11 +57,7 @@ impl State {
     }
 
     #[profiling::function]
-    fn update(&mut self) {
-        self.render_stuff.compute.bind_groups.swap(0, 1);
-        self.render_stuff.render.bind_groups.swap(0, 1);
-        self.render_stuff.compute.particle_swapchain.swap(0, 1);
-    }
+    fn update(&mut self) {}
 
     #[profiling::function]
     fn render(&self) {
@@ -87,29 +83,13 @@ impl State {
         let mut encoder = self.gc.device.create_command_encoder(&Default::default());
 
         {
-            let mut swap_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
-                label: Some("swap pass"),
-            });
-            swap_pass.set_pipeline(&self.render_stuff.compute.swap_pipeline);
-            swap_pass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
-            swap_pass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
-            swap_pass.dispatch(1, 1, 1);
-        }
-
-        {
             let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("physics compute pass"),
             });
             cpass.set_pipeline(&self.render_stuff.compute.compute_pipeline);
-            cpass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
+            cpass.set_bind_group(0, &self.render_stuff.compute.bind_group, &[]);
             cpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
-            // cpass.dispatch_indirect(&self.render_stuff.particle_swapchain[0], 0);
-            cpass.dispatch(
-                ((MAX_PARTICLES + 255) as f32 / 256f32 / 256f32) as u32,
-                1,
-                1,
-            );
-            // cpass.dispatch(64, 1, 1);
+            cpass.dispatch(((MAX_PARTICLES + 63) as f32 / 256f32 / 64f32) as u32, 1, 1);
         }
 
         {
@@ -117,7 +97,7 @@ impl State {
                 label: Some("emission pass"),
             });
             emitpass.set_pipeline(&self.render_stuff.compute.emit_pipeline);
-            emitpass.set_bind_group(0, &self.render_stuff.compute.bind_groups[0], &[]);
+            emitpass.set_bind_group(0, &self.render_stuff.compute.bind_group, &[]);
             emitpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
             emitpass.dispatch((5255f32 / 256f32) as u32, 1, 1);
             // emitpass.dispatch(5000, 1, 1);
@@ -142,7 +122,7 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_stuff.render.render_pipeline);
-            render_pass.set_bind_group(0, &self.render_stuff.render.bind_groups[0], &[]);
+            render_pass.set_bind_group(0, &self.render_stuff.render.bind_group, &[]);
             render_pass.set_bind_group(1, &self.render_stuff.shared.render_bind_group, &[]);
             render_pass.draw(0..MAX_PARTICLES * 3, 0..1);
         }

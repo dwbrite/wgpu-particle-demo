@@ -31,7 +31,6 @@ struct Particles {
 };
 
 [[group(0), binding(0)]] var<storage, read> particlesSrc : Particles;
-[[group(0), binding(1)]] var<storage, read> particlesDst : Particles;
 // should this be in bind_group 1?
 [[group(1), binding(0)]] var<storage, read> helperData : HelperData;
 [[group(1), binding(1)]] var<uniform> uniforms : Uniforms;

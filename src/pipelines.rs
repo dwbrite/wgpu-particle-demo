@@ -36,14 +36,13 @@ pub struct RenderStuff {
 }
 
 pub struct Compute {
-    pub particle_swapchain: [Buffer; 2],
+    pub particle_buffer: Buffer,
 
-    pub bind_groups: [BindGroup; 2],
+    pub bind_group: BindGroup,
     pub bind_group_layout: BindGroupLayout,
 
     pub emit_pipeline: ComputePipeline,
     pub compute_pipeline: ComputePipeline,
-    pub swap_pipeline: ComputePipeline,
 }
 
 impl Compute {
@@ -52,80 +51,36 @@ impl Compute {
         shaders: &ShaderModule,
         shared_bind_group_layout: &BindGroupLayout,
     ) -> Self {
-        // these two buffers act as a swapchain for the particle buffers
-        // basically we read from one, then calc and write the new data to the next buffer.
-        // then the buffers are "swapped" so that the new becomes the old and vice-versa
-        let particle_swapchain = [
-            gc.device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("Particle Buffer 0"),
-                contents: &vec![0u8; MAX_PARTICLES as usize * 64],
-                usage: BufferUsages::STORAGE | BufferUsages::INDIRECT,
-            }),
-            gc.device.create_buffer_init(&BufferInitDescriptor {
-                label: Some("Particle Buffer 1"),
-                contents: &vec![0u8; MAX_PARTICLES as usize * 64],
-                usage: BufferUsages::STORAGE | BufferUsages::INDIRECT,
-            }),
-        ];
+        let particle_buffer = gc.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Particle Buffer 0"),
+            contents: &vec![0u8; MAX_PARTICLES as usize * 64],
+            usage: BufferUsages::STORAGE | BufferUsages::INDIRECT,
+        });
 
         let compute_bind_group_layout =
             gc.device
                 .create_bind_group_layout(&BindGroupLayoutDescriptor {
                     label: None,
-                    entries: &[
-                        BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: ShaderStages::COMPUTE,
-                            ty: BindingType::Buffer {
-                                ty: BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                        BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: ShaderStages::COMPUTE,
-                            ty: BindingType::Buffer {
-                                ty: BufferBindingType::Storage { read_only: false },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
+                        count: None,
+                    }],
                 });
 
-        let compute_bind_groups = [
-            gc.device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &compute_bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: particle_swapchain[0].as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: particle_swapchain[1].as_entire_binding(),
-                    },
-                ],
-            }),
-            gc.device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &compute_bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: particle_swapchain[1].as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: particle_swapchain[0].as_entire_binding(),
-                    },
-                ],
-            }),
-        ];
+        let compute_bind_group = gc.device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &compute_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: particle_buffer.as_entire_binding(),
+            }],
+        });
 
         let compute_pipeline = gc
             .device
@@ -163,38 +118,19 @@ impl Compute {
                 entry_point: "emit",
             });
 
-        let swap_pipeline = gc
-            .device
-            .create_compute_pipeline(&ComputePipelineDescriptor {
-                label: None,
-                layout: Some(
-                    &gc.device.create_pipeline_layout(&PipelineLayoutDescriptor {
-                        label: None,
-                        bind_group_layouts: &[
-                            &compute_bind_group_layout,
-                            &shared_bind_group_layout,
-                        ],
-                        push_constant_ranges: &[],
-                    }),
-                ),
-                module: &shaders,
-                entry_point: "swap",
-            });
-
         Compute {
-            particle_swapchain,
-            bind_groups: compute_bind_groups,
+            particle_buffer,
+            bind_group: compute_bind_group,
             bind_group_layout: compute_bind_group_layout,
             emit_pipeline,
             compute_pipeline,
-            swap_pipeline,
         }
     }
 }
 
 pub struct Render {
     pub render_pipeline: RenderPipeline,
-    pub bind_groups: [BindGroup; 2],
+    pub bind_group: BindGroup,
 }
 
 impl Render {
@@ -202,66 +138,32 @@ impl Render {
         gc: &mut GraphicsContext,
         shaders: &ShaderModule,
         shared_render_bgl: &BindGroupLayout,
-        particle_swapchain: &[Buffer; 2],
+        particle_buffer: &Buffer,
     ) -> Self {
         let render_bind_group_layout =
             gc.device
                 .create_bind_group_layout(&BindGroupLayoutDescriptor {
                     label: None,
-                    entries: &[
-                        BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: ShaderStages::VERTEX,
-                            ty: BindingType::Buffer {
-                                ty: BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::VERTEX,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                        BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: ShaderStages::VERTEX,
-                            ty: BindingType::Buffer {
-                                ty: BufferBindingType::Storage { read_only: true },
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
-                        },
-                    ],
+                        count: None,
+                    }],
                 });
 
-        let bind_groups = [
-            gc.device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &render_bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: particle_swapchain[0].as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: particle_swapchain[1].as_entire_binding(),
-                    },
-                ],
-            }),
-            gc.device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &render_bind_group_layout,
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: particle_swapchain[1].as_entire_binding(),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: particle_swapchain[0].as_entire_binding(),
-                    },
-                ],
-            }),
-        ];
+        let bind_group = gc.device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &render_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: particle_buffer.as_entire_binding(),
+            }],
+        });
 
         let render_pipeline = gc.device.create_render_pipeline(&RenderPipelineDescriptor {
             label: None,
@@ -301,7 +203,7 @@ impl Render {
 
         Render {
             render_pipeline,
-            bind_groups,
+            bind_group,
         }
     }
 }
@@ -466,7 +368,7 @@ impl RenderStuff {
             gc,
             &render_shaders,
             &shared.render_bind_layout,
-            &compute.particle_swapchain,
+            &compute.particle_buffer,
         );
 
         RenderStuff {
