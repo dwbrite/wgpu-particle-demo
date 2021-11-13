@@ -38,29 +38,17 @@ struct Particles {
 
 [[stage(compute), workgroup_size(64, 1, 1)]]
 fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
-
-    let len = 256;
-    var src_idx = 0;
-
-    loop {
-        if (src_idx >= len) {
-            break;
-        }
-
-        let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[global_invocation_id.x][src_idx];
+    for(var y: i32 = 0; y < 256; y = y + 1) {
+        let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[global_invocation_id.x][y];
 
         if ((*particle).lifetime <= 0.0) {
             continue;
         }
 
-        // do physics on a particle
+        // physic :)
         (*particle).lifetime = (*particle).lifetime - 0.16;
-        //...
-
-        src_idx = src_idx + 1;
     }
 }
-
 
 [[stage(compute), workgroup_size(1)]]
 fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
