@@ -10,7 +10,7 @@ resolver="2"
 [dependencies]
 
 # rendering stuff
-wgpu = { version = "0.11", features = ["webgl"] }
+wgpu = { git="https://github.com/gfx-rs/wgpu.git", branch="master", features = [] }
 bytemuck = { version = "1.7", features = ["derive"] }
 winit = "0.25.0"
 winit_input_helper = "0.10.0"

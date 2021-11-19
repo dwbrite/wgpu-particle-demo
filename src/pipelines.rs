@@ -22,9 +22,9 @@ pub const MAX_PARTICLES: u32 = 1_000_000;
 pub struct Uniforms {
     // no bools in Pod, and bools don't have a known in-memory representation
     // so we need to use u32 in its place.
-    paused: u32,
-    mouse_down: u32,
-    mouse_pos_last: [f32; 3],
+    pub(crate) paused: u32,
+    pub(crate) mouse_down: u32,
+    pub(crate) mouse_pos_last: [f32; 3],
     // TODO: camera
 }
 
@@ -184,7 +184,7 @@ impl Render {
                 strip_index_format: None,
                 front_face: FrontFace::Ccw,
                 cull_mode: None,
-                clamp_depth: false,
+                unclipped_depth: false,
                 polygon_mode: PolygonMode::Fill,
                 conservative: false,
             },
@@ -224,23 +224,17 @@ impl Shared {
             usage: BufferUsages::STORAGE | BufferUsages::INDIRECT,
             contents: bytemuck::bytes_of(&HelperData {
                 max_particles: MAX_PARTICLES,
-                dst_len: 0,
-                src_len: 0,
-                idx: 0,
             }),
         });
 
         let uniforms = gc.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("camera + mouse data uniforms"),
-            contents: bytemuck::bytes_of(&Uniforms {
+            contents: bytemuck::cast_slice(&[Uniforms {
                 paused: 0,
                 mouse_down: 0,
-                // mouse_pos_x: 0.0,
-                // mouse_pos_y: 0.0,
-                // mouse_pos_z: 0.0,
-                mouse_pos_last: [0., 0., 0.],
-            }),
-            usage: BufferUsages::UNIFORM,
+                mouse_pos_last: [0., 0., 0.5],
+            }]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
         let shared_compute_bind_layout =
@@ -344,9 +338,6 @@ impl Shared {
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct HelperData {
     max_particles: u32,
-    dst_len: u32,
-    src_len: u32,
-    idx: u32,
 }
 
 impl RenderStuff {

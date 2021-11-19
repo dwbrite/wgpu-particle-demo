@@ -2,7 +2,7 @@ mod gfx_ctx;
 mod pipelines;
 
 use crate::gfx_ctx::GraphicsContext;
-use crate::pipelines::{RenderStuff, MAX_PARTICLES};
+use crate::pipelines::{RenderStuff, Uniforms, MAX_PARTICLES};
 
 use wgpu::{
     Color, ComputePassDescriptor, LoadOp, RenderPassColorAttachment, RenderPassDescriptor,
@@ -15,7 +15,6 @@ use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
 use winit::window::Fullscreen;
 use winit_input_helper::WinitInputHelper;
-use Fullscreen::Borderless;
 
 pub enum ShouldQuit {
     True,
@@ -57,7 +56,32 @@ impl State {
     }
 
     #[profiling::function]
-    fn update(&mut self) {}
+    fn update(&mut self) {
+        if let Some(mouse) = self.input_helper.mouse() {
+            let mouse = (
+                mouse.0 / self.gc.size.width as f32,
+                mouse.1 / self.gc.size.height as f32,
+            );
+
+            let mut uniforms = Uniforms {
+                paused: 0,
+                mouse_down: 0,
+                mouse_pos_last: [mouse.0 - 0.5, mouse.1 - 0.5, 0.5],
+            };
+
+            if self.input_helper.mouse_pressed(0) || self.input_helper.mouse_held(0) {
+                uniforms.mouse_down = 1;
+            }
+
+            println!("{:?}", uniforms);
+
+            self.gc.queue.write_buffer(
+                &self.render_stuff.shared.uniforms,
+                0,
+                bytemuck::cast_slice(&[uniforms]),
+            );
+        }
+    }
 
     #[profiling::function]
     fn render(&self) {
@@ -99,7 +123,7 @@ impl State {
             emitpass.set_pipeline(&self.render_stuff.compute.emit_pipeline);
             emitpass.set_bind_group(0, &self.render_stuff.compute.bind_group, &[]);
             emitpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
-            emitpass.dispatch((5255f32 / 256f32) as u32, 1, 1);
+            emitpass.dispatch(1, 1, 1);
             // emitpass.dispatch(5000, 1, 1);
         }
 

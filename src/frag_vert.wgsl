@@ -1,9 +1,6 @@
 [[block]]
 struct HelperData {
     maxParticles: u32;
-    srcLen: u32;
-    dstLen: u32;
-    idx: u32;
 };
 
 [[block]]
@@ -44,6 +41,11 @@ fn main([[builtin(vertex_index)]] idx: u32) -> VertexOut {
     let p = particlesSrc.particles[obj_idx];
 
     var vertex = vec3<f32>(0.0, 0.0, p.pos.z);
+
+    if (p.lifetime <= 0.0) {
+        return VertexOut(p.col.xyz, vec4<f32>(vertex, -2.0));
+    }
+
     if (rel_idx == 0u ) {
         vertex.x = f32(p.pos.x);
         vertex.y = f32(p.pos.y + (0.02 * (1.0 / p.pos.z)));

@@ -15,7 +15,7 @@ impl GraphicsContext {
     pub(crate) fn new(window: Window) -> Self {
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::Backends::DX12);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
 
         let surface = unsafe { instance.create_surface(&window) };
 
@@ -34,7 +34,7 @@ impl GraphicsContext {
                 features: wgpu::Features::empty(),
                 limits: wgpu::Limits {
                     max_storage_buffer_binding_size: 256 << 20,
-                    ..wgpu::Limits::downlevel_webgl2_defaults()
+                    ..wgpu::Limits::downlevel_defaults()
                 }, // so we can run on webgl
                 label: None,
             },
