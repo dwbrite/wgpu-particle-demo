@@ -48,15 +48,12 @@ fn main([[builtin(vertex_index)]] idx: u32) -> VertexOut {
 
     if (rel_idx == 0u ) {
         vertex.x = f32(p.pos.x);
-        vertex.y = f32(p.pos.y + (0.02 * (1.0 / p.pos.z)));
-//        vertex.y = f32(p.pos.y + (0.5));
+        vertex.y = f32(p.pos.y + (0.001 * (1.0 / p.pos.z)));
     } elseif (rel_idx == 1u) {
-        vertex.x = f32(p.pos.x - (0.02 * (1.0 / p.pos.z)));
-//        vertex.x = f32(p.pos.x - (0.5));
+        vertex.x = f32(p.pos.x - (0.001 * (1.0 / p.pos.z)));
         vertex.y = f32(p.pos.y);
     } elseif (rel_idx == 2u) {
-        vertex.x = f32(p.pos.x + (0.02 * (1.0 / p.pos.z)));
-//        vertex.x = f32(p.pos.x + (0.5));
+        vertex.x = f32(p.pos.x + (0.001 * (1.0 / p.pos.z)));
         vertex.y = f32(p.pos.y);
     }
 

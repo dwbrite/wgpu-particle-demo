@@ -66,14 +66,12 @@ impl State {
             let mut uniforms = Uniforms {
                 paused: 0,
                 mouse_down: 0,
-                mouse_pos_last: [mouse.0 - 0.5, mouse.1 - 0.5, 0.5],
+                mouse_pos_last: [(mouse.0 * 2.0) - 1.0, mouse.1 * (-2.0) + 1.0],
             };
 
             if self.input_helper.mouse_pressed(0) || self.input_helper.mouse_held(0) {
                 uniforms.mouse_down = 1;
             }
-
-            println!("{:?}", uniforms);
 
             self.gc.queue.write_buffer(
                 &self.render_stuff.shared.uniforms,

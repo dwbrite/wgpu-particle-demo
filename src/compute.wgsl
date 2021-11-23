@@ -7,7 +7,7 @@ struct HelperData {
 struct Uniforms {
     paused: u32;
     mouse_down: u32;
-    mouse_pos_last: vec3<f32>;
+    mouse_pos_last: vec2<f32>;
 };
 
 struct Particle {
@@ -46,7 +46,7 @@ fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u
         // physic :)
         (*particle).lifetime = (*particle).lifetime - 0.16;
         (*particle).pos = (*particle).pos + (*particle).vel;
-        (*particle).vel = (*particle).vel * vec3<f32>(0.98); // friction
+        (*particle).vel = (*particle).vel * vec3<f32>(0.998); // friction
     }
 }
 
@@ -58,6 +58,8 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
         return;
     }
 
+    storageBarrier();
+
     for(var group: i32 = 0; group < i32(helperData.maxParticles) / 256; group = group + 1) {
         let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[group][0];
 
@@ -67,15 +69,15 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
         for (var p: i32 = 0; p < 256; p = p + 1) {
             let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[group][p];
 
-            (*particle).lifetime = 200.0;
+            (*particle).lifetime = 600.0;
             let x = cos(2.0*3.14159*(f32(left_to_add)/256.0));
             let y = sin(2.0*3.14159*(f32(left_to_add)/256.0));
-            let idfk = uniforms.mouse_pos_last.xyz;
-//            (*particle).pos = vec3<f32>(idfk.x, idfk.y, 0.5); // TODO: 3D transform mouse position based on camera
-            (*particle).pos = vec3<f32>(0.0, 0.0, 0.5); // TODO: 3D transform mouse position based on camera
+//            (*particle).pos = uniforms.mouse_pos_last; // TODO: 3D transform mouse position based on camera
+            (*particle).pos = vec3<f32>(uniforms.mouse_pos_last, 0.5); // TODO: 3D transform mouse position based on camera
 
             // TODO: explode particles based on mouse velocity normal?
-            (*particle).vel = vec3<f32>(x, y, 0.0) * vec3<f32>(0.01, 0.01, 1.0);
+            (*particle).vel = vec3<f32>(x, y, 0.0) * vec3<f32>(0.003, 0.003, 0.0);
+//            (*particle).vel = vec3<f32>(0.0);
 
             left_to_add = left_to_add - 1;
             if (left_to_add == 0) {

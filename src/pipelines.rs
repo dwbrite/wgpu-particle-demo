@@ -24,7 +24,7 @@ pub struct Uniforms {
     // so we need to use u32 in its place.
     pub(crate) paused: u32,
     pub(crate) mouse_down: u32,
-    pub(crate) mouse_pos_last: [f32; 3],
+    pub(crate) mouse_pos_last: [f32; 2],
     // TODO: camera
 }
 
@@ -232,7 +232,7 @@ impl Shared {
             contents: bytemuck::cast_slice(&[Uniforms {
                 paused: 0,
                 mouse_down: 0,
-                mouse_pos_last: [0., 0., 0.5],
+                mouse_pos_last: [0.0, 0.0],
             }]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });

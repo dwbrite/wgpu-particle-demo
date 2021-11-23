@@ -15,7 +15,7 @@ impl GraphicsContext {
     pub(crate) fn new(window: Window) -> Self {
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
 
         let surface = unsafe { instance.create_surface(&window) };
 
