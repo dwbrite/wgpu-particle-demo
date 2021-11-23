@@ -5,15 +5,17 @@ use crate::gfx_ctx::GraphicsContext;
 use crate::pipelines::{RenderStuff, Uniforms, MAX_PARTICLES};
 
 use wgpu::{
-    Color, ComputePassDescriptor, LoadOp, RenderPassColorAttachment, RenderPassDescriptor,
-    SurfaceError,
+    Color, ComputePassDescriptor, LoadOp, RenderBundle, RenderPassColorAttachment,
+    RenderPassDescriptor, SurfaceError,
 };
 
 use winit::event::Event;
+use winit::event::VirtualKeyCode::P;
 
 use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
 use winit::window::Fullscreen;
+use winit::window::Fullscreen::Borderless;
 use winit_input_helper::WinitInputHelper;
 
 pub enum ShouldQuit {
@@ -122,7 +124,6 @@ impl State {
             emitpass.set_bind_group(0, &self.render_stuff.compute.bind_group, &[]);
             emitpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
             emitpass.dispatch(1, 1, 1);
-            // emitpass.dispatch(5000, 1, 1);
         }
 
         {
@@ -130,16 +131,28 @@ impl State {
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
 
-            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("Render pass descriptor"),
-                color_attachments: &[RenderPassColorAttachment {
+            let ops = wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                store: true,
+            };
+
+            let rpass_color_attachment = if self.gc.sample_count == 1 {
+                wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: LoadOp::Clear(Color::BLACK),
-                        store: true,
-                    },
-                }],
+                    ops,
+                }
+            } else {
+                wgpu::RenderPassColorAttachment {
+                    view: &self.gc.msaa_framebuffer,
+                    resolve_target: Some(view),
+                    ops,
+                }
+            };
+
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("Render pass descriptor"),
+                color_attachments: &[rpass_color_attachment],
                 depth_stencil_attachment: None,
             });
 
@@ -165,7 +178,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let mut gc = GraphicsContext::new(window);
+    let mut gc = GraphicsContext::new(window, 4);
     let render_stuff = RenderStuff::new(&mut gc);
 
     let mut state = State {
