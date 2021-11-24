@@ -159,6 +159,7 @@ impl State {
             render_pass.set_pipeline(&self.render_stuff.render.render_pipeline);
             render_pass.set_bind_group(0, &self.render_stuff.render.bind_group, &[]);
             render_pass.set_bind_group(1, &self.render_stuff.shared.render_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.render_stuff.render.texture_bind_group, &[]);
             render_pass.draw(0..MAX_PARTICLES * 3, 0..1);
         }
 

@@ -52,13 +52,12 @@ fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u
 
 [[stage(compute), workgroup_size(1)]]
 fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
-    var left_to_add = 256;
+    let total_to_add = 512;
+    var left_to_add = total_to_add;
 
     if (uniforms.mouse_down == 0u) {
         return;
     }
-
-    storageBarrier();
 
     for(var group: i32 = 0; group < i32(helperData.maxParticles) / 256; group = group + 1) {
         let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[group][0];
@@ -70,14 +69,12 @@ fn emit([[builtin(global_invocation_id)]] global_invocation_id: vec3<u32>) {
             let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[group][p];
 
             (*particle).lifetime = 600.0;
-            let x = cos(2.0*3.14159*(f32(left_to_add)/256.0));
-            let y = sin(2.0*3.14159*(f32(left_to_add)/256.0));
-//            (*particle).pos = uniforms.mouse_pos_last; // TODO: 3D transform mouse position based on camera
+            let x = cos(2.0*3.14159*(f32(left_to_add)/(f32(total_to_add))));
+            let y = sin(2.0*3.14159*(f32(left_to_add)/(f32(total_to_add))));
             (*particle).pos = vec3<f32>(uniforms.mouse_pos_last, 0.5); // TODO: 3D transform mouse position based on camera
 
             // TODO: explode particles based on mouse velocity normal?
-            (*particle).vel = vec3<f32>(x, y, 0.0) * vec3<f32>(0.003, 0.003, 0.0);
-//            (*particle).vel = vec3<f32>(0.0);
+            (*particle).vel = vec3<f32>(x, y, 0.0) * vec3<f32>(0.002, 0.002, 0.0);
 
             left_to_add = left_to_add - 1;
             if (left_to_add == 0) {

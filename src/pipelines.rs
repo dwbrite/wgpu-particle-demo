@@ -2,10 +2,11 @@ use crate::gfx_ctx::GraphicsContext;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, ComputePipeline,
-    ComputePipelineDescriptor, FragmentState, FrontFace, MultisampleState,
-    PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipeline,
-    RenderPipelineDescriptor, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages,
+    ColorTargetState, ComputePipeline, ComputePipelineDescriptor, FragmentState, FrontFace,
+    MultisampleState, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology,
+    RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, ShaderModule,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureSampleType, TextureViewDimension,
     VertexState,
 };
 
@@ -25,6 +26,7 @@ pub struct Uniforms {
     pub(crate) paused: u32,
     pub(crate) mouse_down: u32,
     pub(crate) mouse_pos_last: [f32; 2],
+    // make sure we stay 16 byte aligned, especially when using arrays
     // TODO: camera
 }
 
@@ -131,6 +133,7 @@ impl Compute {
 pub struct Render {
     pub render_pipeline: RenderPipeline,
     pub bind_group: BindGroup,
+    pub texture_bind_group: BindGroup,
 }
 
 impl Render {
@@ -140,6 +143,88 @@ impl Render {
         shared_render_bgl: &BindGroupLayout,
         particle_buffer: &Buffer,
     ) -> Self {
+        let diffuse_bytes = include_bytes!("particle.png");
+        let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
+        let diffuse_r = diffuse_image.as_luma8().unwrap();
+
+        let texture_extent = wgpu::Extent3d {
+            width: 512,
+            height: 512,
+            depth_or_array_layers: 1,
+        };
+
+        let texture = gc.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: texture_extent,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R8Uint,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        });
+
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        gc.queue.write_texture(
+            texture.as_image_copy(),
+            diffuse_r,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(std::num::NonZeroU32::new(512).unwrap()),
+                rows_per_image: None,
+            },
+            texture_extent,
+        );
+
+        let texture_sampler = gc.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            // mag_filter: wgpu::FilterMode::Linear,
+            // min_filter: wgpu::FilterMode::Nearest,
+            // mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let texture_bind_group_layout =
+            gc.device
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[
+                        BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: ShaderStages::FRAGMENT,
+                            ty: BindingType::Texture {
+                                sample_type: TextureSampleType::Uint,
+                                view_dimension: TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: ShaderStages::FRAGMENT,
+                            ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+                            count: None,
+                        },
+                    ],
+                });
+
+        let texture_bind_group = gc.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&texture_sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
         let render_bind_group_layout =
             gc.device
                 .create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -170,7 +255,11 @@ impl Render {
             layout: Some(
                 &gc.device.create_pipeline_layout(&PipelineLayoutDescriptor {
                     label: None,
-                    bind_group_layouts: &[&render_bind_group_layout, &shared_render_bgl],
+                    bind_group_layouts: &[
+                        &render_bind_group_layout,
+                        &shared_render_bgl,
+                        &texture_bind_group_layout,
+                    ],
                     push_constant_ranges: &[],
                 }),
             ),
@@ -197,13 +286,17 @@ impl Render {
             fragment: Some(FragmentState {
                 module: &shaders,
                 entry_point: "main",
-                targets: &[gc.config.format.into()],
+                targets: &[ColorTargetState {
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    ..gc.config.format.into()
+                }],
             }),
         });
 
         Render {
             render_pipeline,
             bind_group,
+            texture_bind_group,
         }
     }
 }
