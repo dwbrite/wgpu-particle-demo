@@ -2,12 +2,12 @@ use crate::gfx_ctx::GraphicsContext;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType, BufferUsages,
-    ColorTargetState, ComputePipeline, ComputePipelineDescriptor, FragmentState, FrontFace,
-    MultisampleState, PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology,
-    RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, ShaderModule,
-    ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureSampleType, TextureViewDimension,
-    VertexState,
+    BindGroupLayoutEntry, BindingType, BlendComponent, BlendFactor, BlendOperation, BlendState,
+    Buffer, BufferBindingType, BufferUsages, ColorTargetState, ComputePipeline,
+    ComputePipelineDescriptor, FragmentState, FrontFace, MultisampleState,
+    PipelineLayoutDescriptor, PolygonMode, PrimitiveState, PrimitiveTopology, RenderPipeline,
+    RenderPipelineDescriptor, SamplerBindingType, ShaderModule, ShaderModuleDescriptor,
+    ShaderSource, ShaderStages, TextureSampleType, TextureViewDimension, VertexState,
 };
 
 /*
@@ -287,7 +287,14 @@ impl Render {
                 module: &shaders,
                 entry_point: "main",
                 targets: &[ColorTargetState {
-                    blend: Some(BlendState::ALPHA_BLENDING),
+                    blend: Some(BlendState {
+                        color: BlendComponent {
+                            src_factor: BlendFactor::SrcAlpha,
+                            dst_factor: BlendFactor::DstAlpha,
+                            operation: BlendOperation::Add,
+                        },
+                        alpha: BlendComponent::OVER,
+                    }),
                     ..gc.config.format.into()
                 }],
             }),

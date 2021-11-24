@@ -39,7 +39,7 @@ fn step_particles([[builtin(global_invocation_id)]] global_invocation_id: vec3<u
     for(var y: i32 = 0; y < 256; y = y + 1) {
         let particle: ptr<storage, Particle, read_write> = &particlesSrc.group[global_invocation_id.x][y];
 
-        if ((*particle).lifetime <= 0.0) {
+        if ((*particle).lifetime < 0.0) {
             continue;
         }
 
