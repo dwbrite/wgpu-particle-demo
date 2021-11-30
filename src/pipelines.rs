@@ -298,6 +298,7 @@ impl Render {
                     ..gc.config.format.into()
                 }],
             }),
+            multiview: None,
         });
 
         Render {

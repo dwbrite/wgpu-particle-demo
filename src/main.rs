@@ -12,11 +12,18 @@ use wgpu::{
 use winit::event::Event;
 use winit::event::VirtualKeyCode::P;
 
+use std::panic;
+
+#[cfg(target_arch = "wasm32")]
+use web_sys::window;
+
 use winit::event_loop::ControlFlow;
 use winit::event_loop::*;
 use winit::window::Fullscreen;
 use winit::window::Fullscreen::Borderless;
 use winit_input_helper::WinitInputHelper;
+// extern crate console_error_panic_hook;
+// use std::panic;
 
 pub enum ShouldQuit {
     True,
@@ -30,17 +37,19 @@ struct State {
 }
 
 impl State {
-    #[profiling::function]
+    #[cfg_attr(feature = "tracy", profiling::function)]
     pub fn handle_events(&mut self, event: &Event<()>) -> ShouldQuit {
         let has_events = self.input_helper.update(event);
 
         // if events cleared
         if has_events {
+            #[cfg(feature = "tracy")]
             profiling::scope!("Main Thread");
 
             self.update();
             self.render();
 
+            #[cfg(feature = "tracy")]
             profiling::finish_frame!();
         }
 
@@ -57,7 +66,7 @@ impl State {
         }
     }
 
-    #[profiling::function]
+    #[cfg_attr(feature = "tracy", profiling::function)]
     fn update(&mut self) {
         if let Some(mouse) = self.input_helper.mouse() {
             let mouse = (
@@ -83,7 +92,7 @@ impl State {
         }
     }
 
-    #[profiling::function]
+    #[cfg_attr(feature = "tracy", profiling::function)]
     fn render(&self) {
         let frame_tex = {
             let frame = self.gc.surface.get_current_texture();
@@ -169,7 +178,9 @@ impl State {
 }
 
 fn main() {
+    #[cfg(feature = "tracy")]
     profiling::register_thread!("Main Thread");
+
     env_logger::init();
     let event_loop = EventLoop::new();
 
@@ -178,6 +189,22 @@ fn main() {
         // .with_fullscreen(Some(Borderless(None)))
         .build(&event_loop)
         .unwrap();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::WindowExtWebSys;
+
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| doc.body())
+            .and_then(|body| {
+                body.append_child(&web_sys::Element::from(window.canvas()))
+                    .ok()
+            })
+            .expect("couldn't append canvas to document body");
+    }
 
     let mut gc = GraphicsContext::new(window, 4);
     let render_stuff = RenderStuff::new(&mut gc);
