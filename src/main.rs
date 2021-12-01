@@ -1,3 +1,4 @@
+// mod framework;
 mod gfx_ctx;
 mod pipelines;
 
@@ -122,7 +123,11 @@ impl State {
             cpass.set_pipeline(&self.render_stuff.compute.compute_pipeline);
             cpass.set_bind_group(0, &self.render_stuff.compute.bind_group, &[]);
             cpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
-            cpass.dispatch(((MAX_PARTICLES + 63) as f32 / 256f32 / 64f32) as u32, 1, 1);
+            cpass.dispatch(
+                ((MAX_PARTICLES + 255) as f32 / 256f32 / 256f32) as u32,
+                1,
+                1,
+            );
         }
 
         {
@@ -169,7 +174,7 @@ impl State {
             render_pass.set_bind_group(0, &self.render_stuff.render.bind_group, &[]);
             render_pass.set_bind_group(1, &self.render_stuff.shared.render_bind_group, &[]);
             render_pass.set_bind_group(2, &self.render_stuff.render.texture_bind_group, &[]);
-            render_pass.draw(0..MAX_PARTICLES * 3, 0..1);
+            render_pass.draw(0..((MAX_PARTICLES) * 3), 0..1);
         }
 
         self.gc.queue.submit(Some(encoder.finish()));
@@ -177,11 +182,11 @@ impl State {
     }
 }
 
-fn main() {
+async fn async_main() {
     #[cfg(feature = "tracy")]
     profiling::register_thread!("Main Thread");
 
-    env_logger::init();
+    // env_logger::init();
     let event_loop = EventLoop::new();
 
     let window = winit::window::WindowBuilder::new()
@@ -206,7 +211,7 @@ fn main() {
             .expect("couldn't append canvas to document body");
     }
 
-    let mut gc = GraphicsContext::new(window, 4);
+    let mut gc = GraphicsContext::new(window, 1).await;
     let render_stuff = RenderStuff::new(&mut gc);
 
     let mut state = State {
@@ -222,4 +227,15 @@ fn main() {
             *control_flow = ControlFlow::Exit
         }
     });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {
+    futures::executor::block_on(async_main());
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    use wasm_bindgen::{prelude::*, JsCast};
+    wasm_bindgen_futures::spawn_local(async_main());
 }

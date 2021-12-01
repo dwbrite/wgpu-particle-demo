@@ -10,13 +10,11 @@ use wgpu::{
     ShaderSource, ShaderStages, TextureSampleType, TextureViewDimension, VertexState,
 };
 
-/*
-see: https://sotrh.github.io/learn-wgpu/showcase/windowless/#getting-data-out-of-a-buffer
+#[cfg(not(target_arch = "wasm32"))]
+pub const MAX_PARTICLES: u32 = 1_048_576;
 
-particles will also need a bool to determine if they are dead or not :thinking:
-*/
-
-pub const MAX_PARTICLES: u32 = 1_000_000;
+#[cfg(target_arch = "wasm32")]
+pub const MAX_PARTICLES: u32 = 393_216;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]

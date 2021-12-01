@@ -1,4 +1,4 @@
-use futures::executor::block_on;
+// use futures::executor::block_on;
 use wgpu::{PresentMode, RequestAdapterOptions, SurfaceConfiguration, TextureUsages, TextureView};
 use winit::window::Window;
 
@@ -14,7 +14,7 @@ pub struct GraphicsContext {
 }
 
 impl GraphicsContext {
-    pub(crate) fn new(window: Window, sample_count: u32) -> Self {
+    pub(crate) async fn new(window: Window, sample_count: u32) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
@@ -22,27 +22,31 @@ impl GraphicsContext {
         let surface = unsafe { instance.create_surface(&window) };
 
         // TODO: hey asshole, fix this later - we need to know if a given adapter will be supported.
-        let adapter = block_on(instance.request_adapter(&RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            force_fallback_adapter: false,
-            compatible_surface: Some(&surface),
-        }))
-        .unwrap();
+        let adapter = instance
+            .request_adapter(&RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                force_fallback_adapter: false,
+                compatible_surface: Some(&surface),
+            })
+            .await
+            .unwrap();
 
         println!("{:?}", adapter.get_info().backend);
 
-        let (device, queue) = block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits {
-                    max_storage_buffer_binding_size: 256 << 20,
-                    ..wgpu::Limits::default()
-                }, // so we can run on webgl
-                label: None,
-            },
-            None, // Trace path
-        ))
-        .unwrap();
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    features: wgpu::Features::empty(),
+                    limits: wgpu::Limits {
+                        max_storage_buffer_binding_size: 256 << 20,
+                        ..wgpu::Limits::default()
+                    }, // so we can run on webgl
+                    label: None,
+                },
+                None, // Trace path
+            )
+            .await
+            .unwrap();
 
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
@@ -50,7 +54,7 @@ impl GraphicsContext {
             width: size.width,
             height: size.height,
             // just for performance testing
-            present_mode: PresentMode::Immediate,
+            present_mode: PresentMode::Mailbox,
         };
 
         surface.configure(&device, &config);

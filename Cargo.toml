@@ -18,12 +18,13 @@ winit_input_helper = "0.10.0"
 image = "0.23.14"
 
 # async
-tokio = "1.12"
+#tokio = "1.12"
 futures = "0.3.17"
+async-executor = "1.4.1"
 
 # profiling
-log = "0.4"
-env_logger = "0.9.0"
+#log = "0.4"
+#env_logger = "0.9.0"
 
 # feature flag deps
 profiling = { version = "1.0.3", features = ["profile-with-tracy"], optional = true }
