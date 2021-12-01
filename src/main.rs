@@ -123,11 +123,7 @@ impl State {
             cpass.set_pipeline(&self.render_stuff.compute.compute_pipeline);
             cpass.set_bind_group(0, &self.render_stuff.compute.bind_group, &[]);
             cpass.set_bind_group(1, &self.render_stuff.shared.compute_bind_group, &[]);
-            cpass.dispatch(
-                ((MAX_PARTICLES + 255) as f32 / 256f32 / 256f32) as u32,
-                1,
-                1,
-            );
+            cpass.dispatch(((MAX_PARTICLES + 63) as f32 / 256f32 / 64f32) as u32, 1, 1);
         }
 
         {
